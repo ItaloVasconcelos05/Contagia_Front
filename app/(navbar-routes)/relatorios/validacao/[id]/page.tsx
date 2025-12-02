@@ -280,18 +280,14 @@ export default function ValidandoPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ 
-          apenasStatus: true  // Flag para indicar que não deve criar relatório EDL
+          apenasStatus: true
         }),
       });
 
       if (response.ok) {
-        // Redirecionar para a página de relatórios
-        setTimeout(() => {
-          router.push('/relatorios');
-        }, 1000);
+        console.log('Arquivo auto-finalizado com sucesso');
       }
     } catch (error) {
-      // Silencioso - auto-finalização não deve mostrar erros ao usuário
     }
   };
   
@@ -346,15 +342,16 @@ export default function ValidandoPage() {
       });
 
       if (response.ok) {
+        const result = await response.json();
+        
+        // Resetar flag de submissão
+        setIsSubmitting(false);
+        
         // Abrir modal EDL
         handleGenerateEdl();
-        
-        // Redirecionar para a página de relatórios após 2 segundos
-        setTimeout(() => {
-          router.push('/relatorios');
-        }, 2000);
       } else {
         const error = await response.json();
+        console.error('❌ Erro ao finalizar:', error);
         alert(`Erro ao finalizar arquivo: ${error.details || error.error}`);
         setIsSubmitting(false);
       }
@@ -440,6 +437,12 @@ export default function ValidandoPage() {
         <EDLDownloadModal
           isOpen={showEDLModal}
           onClose={() => setShowEDLModal(false)}
+          onDownload={() => {
+            setTimeout(() => {
+              router.push('/relatorios');
+              router.refresh();
+            }, 1000);
+          }}
           fileName={validationTitle}
           validationTitle={validationTitle}
           musicData={currentMusicData}

@@ -18,6 +18,7 @@ interface MusicData {
 interface EDLDownloadModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onDownload?: () => void;
   fileName: string;
   validationTitle: string;
   musicData?: MusicData[];
@@ -25,60 +26,62 @@ interface EDLDownloadModalProps {
   totalMusicas?: number;
   musicasAprovadas?: number;
   musicasRejeitadas?: number;
+  duracaoArquivo?: number;
 }
 
 const EDLDownloadModal = ({ 
   isOpen, 
-  onClose, 
+  onClose,
+  onDownload,
   fileName, 
   validationTitle,
   musicData = [],
   validatedSongs = {},
   totalMusicas,
   musicasAprovadas,
-  musicasRejeitadas
+  musicasRejeitadas,
+  duracaoArquivo
 }: EDLDownloadModalProps) => {
   const [isDownloading, setIsDownloading] = useState(false);
 
   // Calcular estatísticas
   const stats = useMemo(() => {
-
-    
     let approved: number;
     let rejected: number;
     let total: number;
     
     // Se os contadores foram passados como props (vindo do relatório EDL), usar eles
     if (totalMusicas !== undefined && musicasAprovadas !== undefined && musicasRejeitadas !== undefined) {
-
       approved = musicasAprovadas;
       rejected = musicasRejeitadas;
       total = totalMusicas;
     } else {
-
       // Caso contrário, calcular dos dados locais
       approved = Object.values(validatedSongs).filter(status => status === 'approved').length;
       rejected = Object.values(validatedSongs).filter(status => status === 'rejected').length;
       total = musicData.length;
     }
     
-
-    
     // Calcular duração total do arquivo
     let totalSeconds = 0;
     
-    // Tentar pegar a duração total dos dados do upload no localStorage
-    try {
-      const uploadResults = localStorage.getItem('uploadResults');
-      if (uploadResults) {
-        const data = JSON.parse(uploadResults);
-        // Calcular baseado nos dados completos: segundosPorSegmento * quantidadeSegmentos
-        if (data.segundosPorSegmento && data.quantidadeSegmentos) {
-          totalSeconds = data.segundosPorSegmento * data.quantidadeSegmentos;
+    // Se duracaoArquivo foi passada (arquivo do banco), usar ela
+    if (duracaoArquivo && duracaoArquivo > 0) {
+      totalSeconds = duracaoArquivo;
+    } else {
+      // Caso contrário, tentar pegar do localStorage (upload novo)
+      try {
+        const uploadResults = localStorage.getItem('uploadResults');
+        if (uploadResults) {
+          const data = JSON.parse(uploadResults);
+          // Calcular baseado nos dados completos: segundosPorSegmento * quantidadeSegmentos
+          if (data.segundosPorSegmento && data.quantidadeSegmentos) {
+            totalSeconds = data.segundosPorSegmento * data.quantidadeSegmentos;
+          }
         }
+      } catch (e) {
+        // Erro ao buscar localStorage
       }
-    } catch (e) {
-      // Erro ao buscar localStorage
     }
     
     // Se não conseguiu do localStorage, calcular pelo maior tempoFim das músicas
@@ -221,6 +224,11 @@ MÚSICAS REJEITADAS (Não incluídas no EDL)
       URL.revokeObjectURL(url);
       
       setIsDownloading(false);
+      
+      // Chamar callback de download se existir
+      if (onDownload) {
+        onDownload();
+      }
       
       // Fechar o modal após download
       setTimeout(() => {
